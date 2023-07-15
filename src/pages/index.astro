@@ -1,0 +1,23 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+---
+
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+	</head>
+	<body>
+		<Header title={SITE_TITLE} />
+		<main>
+			<h1>🧑‍🚀 Hello, Reader!</h1>
+			<p>
+				Welcome to the my task log! Inside you'll find a list of my achievements whilst working as software engineer, and occassionaly some posts about tech, too. Enjoy!
+			</p>
+		</main>
+		<Footer />
+	</body>
+</html>
