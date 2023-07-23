@@ -1,0 +1,269 @@
+---
+title: '60fps React Native Google Maps on iOS'
+description: 'Highly optimised React Native Maps'
+pubDate: 'Jul 08 2022'
+heroImage: '/placeholder-hero.jpg'
+---
+
+import VideoPlayer from '../../components/VideoPlayer.astro'
+
+## Re-render 450+ markers on React Native Maps at 60fps. YES!
+<VideoPlayer src='/videos/rnmaps_optimised.mov' />
+
+So we were having performance issues with React Native Maps on iOS when using the Google map provider. This app had 450+ markers on a map which would change from zoomed in / out based on the zoom level (latitudeDelta). Only on iOS, though, not Android. I guess because the Android native package uses markers which are optimised for Google maps - need to look into this more.
+
+Initially I had a state setup to track a boolean zoomedIn variable. Each marker would take this as a prop and used this prop to render a specific icon. Setting the zoomedIn state was a callback in the mapview onRegionChange prop.
+
+Whenever the map zoom level hit the swicth point the app UI rate was dropping - often to 0fps - and the entire array of markers would momentarily disappear.
+
+#### - Reconciliation -
+
+This was all down to reconciliation and batched state updates. React's standard behaviour is to review all 450+ markers props state before + after the re-render, and then carry out all the js updates and thus update the native AIRMapMarker. We can skip this.
+
+#### - Solution: setNativeProps -
+
+To get around this bottleneck I made use of the setNativeProps method. Aka imperative manipulation. Basically this allows you to short circuit the reconcilliation process and instruct React to set whatever props you like without any reconcilliation checks. [Here's a useful blog on this](https://engineering.razorpay.com/getting-react-native-to-60-fps-with-imperative-manipulation-ccd4e85f5fef).
+Note that there isn't a single useMemo or useCallback here, not least because we have eliminated unnecessary rerenders but because it's always faster to not use these hooks unless you _need_ to. 
+
+Downsides? If the components were to re-render i.e. parent component state change, you would lose the current state of the component. In this case that is no problem, because a parent component re-render would only happen because of a data update - which is desired behaviour.
+
+#### - Implementation -
+
+_This code is simplified for confidentiality, but is a fully working example_
+
+- Track the 'state' change with useRef.
+```
+const zoomedInPins = useRef(false)
+```
+- Create an array of unattached refs from the data. This array will be of equal length to the data array which we will render markers from.
+```
+const pinRefs = useRef<{ current: MapMarker | null }[]>(
+    new Array(data.length)
+      .fill(0)
+      .map(() => ({ current: null }))
+  ).current
+```
+- Create an array of objects from which we can determine which specific icon to use.
+```
+const icontypes: { icontype: IconType }[] =
+    data.map((location) => {
+      return {
+        icontype: location.icontype,
+      }
+    })
+```
+- Return an array of markers from data, mapping each pin to the array of pinRefs.
+```
+const pins = () => {
+    return data.map((location, index) => {
+
+      // A wrapper of the MapView.Marker component, passing a forward ref
+      return (
+        <Marker
+          innerRef={pinRefs[index]}
+          key={`pin-${index}`}
+          location={location}
+          index={index}
+          onPress={() => goToLocation(location.locationid)}
+        />
+      )
+    })
+  }
+```
+
+- Setup references/schema for the icon assets. I am using typed object literals so my IDE ensures I don't miss any cases, and I think these have better readbility than switch statements. Note that image uris are sourced with a function ```uriForLocalAsset``` that loads the correct image source into a cache based on the current environment and OS.
+```
+const zoomedIcons: { [key in IconType]: { asset: string } } = {
+    [IconType.type1]: {
+      asset: uriForLocalAsset(LocalAsset.type1.zoomedIn)
+    },
+    [IconType.type2]: {
+      asset: uriForLocalAsset(LocalAsset.type2.zoomedIn)
+    },
+    [IconType.type3]: { 
+      asset: uriForLocalAsset(LocalAsset.type3.zoomedIn) 
+    },
+    //...other icons
+  }
+
+const zoomedOutIcons: { [key in IconType]: { asset: string } } = {
+    [IconType.type1]: {
+      asset: uriForLocalAsset(LocalAsset.type1.zoomedOut)
+    },
+    [IconType.type2]: {
+      asset: uriForLocalAsset(LocalAsset.type2.zoomedOut)
+    },
+    [IconType.type3]: { 
+      asset: uriForLocalAsset(LocalAsset.type3.zoomedOut) 
+    },
+    //...other icons
+  }
+```
+- Handle logic for the onRegionChange callback which is called by the MapView.
+```
+const markerIconType = (region: Region) => {
+
+    if (region.latitudeDelta < 1.27 || region.longitudeDelta < 1.27) {
+      if (zoomedInPins.current) {
+        return
+      }
+      pinRefs.forEach((pinRef, index) => {
+        pinRef.current?.setNativeProps({
+          icon: zoomedIcons[icontypes[index].icontype].asset
+        })
+      })
+      zoomedInPins.current = !zoomedInPins.current
+    } 
+    
+    else {
+      if (!zoomedInPins.current) {
+        return
+      }
+      pinRefs.forEach((pinRef, index) => {
+        pinRef.current?.setNativeProps({
+          icon: zoomedOutIcons[icontypes[index].icontype].asset
+        })
+      })
+      zoomedInPins.current = !zoomedInPins.current
+    }
+  }
+  ```
+
+- And finally how it is called in the MapView component. We're able to performantly call the markerIconType callback in onRegionChange without debouncing because the function itself has an escape hatch so it only actually does the heavyweight code when we reach the point to change the marker icons.
+```
+      <MapView
+        ...props
+        onRegionChange={(region) => markerIconType(region)}
+      >
+        {pins()}
+      </MapView>
+```
+
+#### Complete Implementation
+
+```
+import React, { useRef } from 'react'
+import { StyleSheet, View } from 'react-native'
+import MapView, { MapMarker, PROVIDER_GOOGLE, Region } from 'react-native-maps'
+
+import mapStyle from '../../styles/mapStyle.json'
+import Marker from './Markers/Marker'
+import { IconType, coords } from '../../types.d.ts
+import { LocalAsset, uriForLocalAsset } from '../../hooks/useCachedResources'
+
+/** Note that this method of using setNativeProps will be deprecated in react-native-maps v2.0.0 */
+
+interface MapProps {
+  goToLocation: (locationid: number) => void
+  data: {icontype: IconType, locationId: number, coords: coords}[]
+}
+
+const Map = ({ goToLocation, data }: MapProps) => {
+  const zoomedInPins = useRef(false)
+  const pinRefs = useRef<{ current: MapMarker | null }[]>(
+    new Array(data.length)
+      .fill(0)
+      .map(() => ({ current: null }))
+  ).current
+
+  const icontypes: { icontype: IconType }[] =
+    data.map((location) => {
+      return {
+        icontype: location.icontype,
+      }
+    })
+
+  const pins = () => {
+    return data.map((location, index) => {
+
+      // A wrapper of the MapView.Marker component, passing a forward ref
+      return (
+        <Marker
+            innerRef={pinRefs[index]}
+            key={`pin-${index}`}
+            location={location}
+            index={index}
+            onPress={() => goToLocation(location.locationid)}
+            />
+        )
+      })
+    }
+
+  const zoomedIcons: { [key in IconType]: { asset: string } } = {
+    [IconType.type1]: {
+      asset: uriForLocalAsset(LocalAsset.type1.zoomedIn)
+    },
+    [IconType.type2]: {
+      asset: uriForLocalAsset(LocalAsset.type2.zoomedIn)
+    },
+    [IconType.type3]: {
+      asset: uriForLocalAsset(LocalAsset.type3.zoomedIn)
+    }
+  }
+
+  const zoomedOutIcons: { [key in IconType]: { asset: string } } = {
+    [IconType.type1]: {
+      asset: uriForLocalAsset(LocalAsset.type1.zoomedOut)
+    },
+    [IconType.type2]: {
+      asset: uriForLocalAsset(LocalAsset.type2.zoomedOut)
+    },
+    [IconType.type3]: {
+      asset: uriForLocalAsset(LocalAsset.type3.zoomedOut)
+    }
+  }
+
+  const markerIconType = (region: Region) => {
+
+    if (region.latitudeDelta < 1.27 || region.longitudeDelta < 1.27) {
+      if (zoomedInPins.current) {
+        return
+      }
+      pinRefs.forEach((pinRef, index) => {
+        pinRef.current?.setNativeProps({
+          icon: zoomedIcons[icontypes[index].icontype].asset
+        })
+      })
+      zoomedInPins.current = !zoomedInPins.current
+    }
+
+    else {
+      if (!zoomedInPins.current) {
+        return
+      }
+      pinRefs.forEach((pinRef, index) => {
+        pinRef.current?.setNativeProps({
+          icon: zoomedOutIcons[icontypes[index].icontype].asset
+        })
+      })
+      zoomedInPins.current = !zoomedInPins.current
+    }
+  }
+
+return (
+  <View>
+    <MapView
+      style={styles.map}
+      customMapStyle={mapStyle}
+      provider={PROVIDER_GOOGLE}
+      onRegionChange={(region) => markerIconType(region)}
+    >
+      {pins()}
+    </MapView>
+  </View>
+  )
+}
+export default Map
+
+const styles = StyleSheet.create({
+  map: {
+    alignSelf: 'stretch',
+    flex: 1
+  }
+})
+```
+
+### Conclusion
+
+There you have it. A specific use case for implementing imperative manipulation to improve the performance of React Native Maps, on iOS, using the google maps provider.
+
