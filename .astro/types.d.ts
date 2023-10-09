@@ -206,9 +206,23 @@ declare module 'astro:content' {
   collection: "blog";
   data: InferEntrySchema<"blog">
 } & { render(): Render[".mdx"] };
+"bing.mdx": {
+	id: "bing.mdx";
+  slug: "bing";
+  body: string;
+  collection: "blog";
+  data: InferEntrySchema<"blog">
+} & { render(): Render[".mdx"] };
 "bp-passport.md": {
 	id: "bp-passport.md";
   slug: "bp-passport";
+  body: string;
+  collection: "blog";
+  data: InferEntrySchema<"blog">
+} & { render(): Render[".md"] };
+"link-my-ride.md": {
+	id: "link-my-ride.md";
+  slug: "link-my-ride";
   body: string;
   collection: "blog";
   data: InferEntrySchema<"blog">
@@ -223,13 +237,6 @@ declare module 'astro:content' {
 "ssrs.md": {
 	id: "ssrs.md";
   slug: "ssrs";
-  body: string;
-  collection: "blog";
-  data: InferEntrySchema<"blog">
-} & { render(): Render[".md"] };
-"third-post.md": {
-	id: "third-post.md";
-  slug: "third-post";
   body: string;
   collection: "blog";
   data: InferEntrySchema<"blog">

@@ -43,21 +43,13 @@ const pinRefs = useRef<{ current: MapMarker | null }[]>(
       .map(() => ({ current: null }))
   ).current
 ```
-- Create an array of objects from which we can determine which specific icon to use.
-```
-const icontypes: { icontype: IconType }[] =
-    data.map((location) => {
-      return {
-        icontype: location.icontype,
-      }
-    })
-```
+
 - Return an array of markers from data, mapping each pin to the array of pinRefs.
 ```
 const pins = () => {
     return data.map((location, index) => {
 
-      // A wrapper of the MapView.Marker component, passing a forward ref
+      // A wrapper of the MapView.Marker component, passing a forward ref and some other custom props.
       return (
         <Marker
           innerRef={pinRefs[index]}
@@ -71,34 +63,6 @@ const pins = () => {
   }
 ```
 
-- Setup references/schema for the icon assets. I am using typed object literals so my IDE ensures I don't miss any cases, and I think these have better readbility than switch statements. Note that image uris are sourced with a function ```uriForLocalAsset``` that loads the correct image source into a cache based on the current environment and OS.
-```
-const zoomedIcons: { [key in IconType]: { asset: string } } = {
-    [IconType.type1]: {
-      asset: uriForLocalAsset(LocalAsset.type1.zoomedIn)
-    },
-    [IconType.type2]: {
-      asset: uriForLocalAsset(LocalAsset.type2.zoomedIn)
-    },
-    [IconType.type3]: { 
-      asset: uriForLocalAsset(LocalAsset.type3.zoomedIn) 
-    },
-    //...other icons
-  }
-
-const zoomedOutIcons: { [key in IconType]: { asset: string } } = {
-    [IconType.type1]: {
-      asset: uriForLocalAsset(LocalAsset.type1.zoomedOut)
-    },
-    [IconType.type2]: {
-      asset: uriForLocalAsset(LocalAsset.type2.zoomedOut)
-    },
-    [IconType.type3]: { 
-      asset: uriForLocalAsset(LocalAsset.type3.zoomedOut) 
-    },
-    //...other icons
-  }
-```
 - Handle logic for the onRegionChange callback which is called by the MapView.
 ```
 const markerIconType = (region: Region) => {
@@ -109,19 +73,25 @@ const markerIconType = (region: Region) => {
       }
       pinRefs.forEach((pinRef, index) => {
         pinRef.current?.setNativeProps({
-          icon: zoomedIcons[icontypes[index].icontype].asset
+
+          // your code for sourcing an icon i.e. you could use an object literal to map icons to each location data.
+          icon: 'icon'
+
         })
       })
       zoomedInPins.current = !zoomedInPins.current
-    } 
-    
+    }
+
     else {
       if (!zoomedInPins.current) {
         return
       }
       pinRefs.forEach((pinRef, index) => {
         pinRef.current?.setNativeProps({
-          icon: zoomedOutIcons[icontypes[index].icontype].asset
+
+          // your code for sourcing an icon i.e. you could use an object literal to map icons to each location data.
+          icon: 'icon'
+          
         })
       })
       zoomedInPins.current = !zoomedInPins.current
@@ -148,14 +118,12 @@ import MapView, { MapMarker, PROVIDER_GOOGLE, Region } from 'react-native-maps'
 
 import mapStyle from '../../styles/mapStyle.json'
 import Marker from './Markers/Marker'
-import { IconType, coords } from '../../types.d.ts
-import { LocalAsset, uriForLocalAsset } from '../../hooks/useCachedResources'
 
 /** Note that this method of using setNativeProps will be deprecated in react-native-maps v2.0.0 */
 
 interface MapProps {
   goToLocation: (locationid: number) => void
-  data: {icontype: IconType, locationId: number, coords: coords}[]
+  data: Location[]
 }
 
 const Map = ({ goToLocation, data }: MapProps) => {
@@ -165,13 +133,6 @@ const Map = ({ goToLocation, data }: MapProps) => {
       .fill(0)
       .map(() => ({ current: null }))
   ).current
-
-  const icontypes: { icontype: IconType }[] =
-    data.map((location) => {
-      return {
-        icontype: location.icontype,
-      }
-    })
 
   const pins = () => {
     return data.map((location, index) => {
@@ -189,30 +150,6 @@ const Map = ({ goToLocation, data }: MapProps) => {
       })
     }
 
-  const zoomedIcons: { [key in IconType]: { asset: string } } = {
-    [IconType.type1]: {
-      asset: uriForLocalAsset(LocalAsset.type1.zoomedIn)
-    },
-    [IconType.type2]: {
-      asset: uriForLocalAsset(LocalAsset.type2.zoomedIn)
-    },
-    [IconType.type3]: {
-      asset: uriForLocalAsset(LocalAsset.type3.zoomedIn)
-    }
-  }
-
-  const zoomedOutIcons: { [key in IconType]: { asset: string } } = {
-    [IconType.type1]: {
-      asset: uriForLocalAsset(LocalAsset.type1.zoomedOut)
-    },
-    [IconType.type2]: {
-      asset: uriForLocalAsset(LocalAsset.type2.zoomedOut)
-    },
-    [IconType.type3]: {
-      asset: uriForLocalAsset(LocalAsset.type3.zoomedOut)
-    }
-  }
-
   const markerIconType = (region: Region) => {
 
     if (region.latitudeDelta < 1.27 || region.longitudeDelta < 1.27) {
@@ -221,7 +158,7 @@ const Map = ({ goToLocation, data }: MapProps) => {
       }
       pinRefs.forEach((pinRef, index) => {
         pinRef.current?.setNativeProps({
-          icon: zoomedIcons[icontypes[index].icontype].asset
+          icon: // your code for sourcing an icon
         })
       })
       zoomedInPins.current = !zoomedInPins.current
@@ -233,7 +170,7 @@ const Map = ({ goToLocation, data }: MapProps) => {
       }
       pinRefs.forEach((pinRef, index) => {
         pinRef.current?.setNativeProps({
-          icon: zoomedOutIcons[icontypes[index].icontype].asset
+          icon: // your code for sourcing an icon
         })
       })
       zoomedInPins.current = !zoomedInPins.current
