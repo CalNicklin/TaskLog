@@ -1,0 +1,36 @@
+---
+import BlogPost from "../../layouts/BlogPost.astro";
+import { app } from "../../firebase/server";
+import { getFirestore } from "firebase-admin/firestore";
+
+interface Task {
+  content: string;
+  description: string;
+  heroImage: string;
+  pubDate: string;
+  title: string;
+}
+
+const { id } = Astro.params;
+console.log(Astro.params);
+
+
+if (!id) {
+  return Astro.redirect("/404");
+}
+
+const db = getFirestore(app);
+const TasksRef = db.collection("tasks");
+const TaskSnapshot = await TasksRef.doc(id).get();
+
+if (!TaskSnapshot.exists) {
+  return Astro.redirect("/404");
+}
+
+const task = TaskSnapshot.data() as Task;
+---
+
+<BlogPost {...task}>
+  <h1>{task.content}</h1>
+  <p>description: {task.description}</p>
+</BlogPost>

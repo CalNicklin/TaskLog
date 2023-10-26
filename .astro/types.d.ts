@@ -206,16 +206,44 @@ declare module 'astro:content' {
   collection: "blog";
   data: InferEntrySchema<"blog">
 } & { render(): Render[".mdx"] };
-"bing.mdx": {
-	id: "bing.mdx";
+"aiExplorations.md": {
+	id: "aiExplorations.md";
+  slug: "aiexplorations";
+  body: string;
+  collection: "blog";
+  data: InferEntrySchema<"blog">
+} & { render(): Render[".md"] };
+"bing-wpl.md": {
+	id: "bing-wpl.md";
+  slug: "bing-wpl";
+  body: string;
+  collection: "blog";
+  data: InferEntrySchema<"blog">
+} & { render(): Render[".md"] };
+"bing.md": {
+	id: "bing.md";
   slug: "bing";
   body: string;
   collection: "blog";
   data: InferEntrySchema<"blog">
-} & { render(): Render[".mdx"] };
+} & { render(): Render[".md"] };
 "bp-passport.md": {
 	id: "bp-passport.md";
   slug: "bp-passport";
+  body: string;
+  collection: "blog";
+  data: InferEntrySchema<"blog">
+} & { render(): Render[".md"] };
+"generateStyles.md": {
+	id: "generateStyles.md";
+  slug: "generatestyles";
+  body: string;
+  collection: "blog";
+  data: InferEntrySchema<"blog">
+} & { render(): Render[".md"] };
+"hackathon.md": {
+	id: "hackathon.md";
+  slug: "hackathon";
   body: string;
   collection: "blog";
   data: InferEntrySchema<"blog">
@@ -227,9 +255,9 @@ declare module 'astro:content' {
   collection: "blog";
   data: InferEntrySchema<"blog">
 } & { render(): Render[".md"] };
-"markdown-style-guide.md": {
-	id: "markdown-style-guide.md";
-  slug: "markdown-style-guide";
+"lmr-2.md": {
+	id: "lmr-2.md";
+  slug: "lmr-2";
   body: string;
   collection: "blog";
   data: InferEntrySchema<"blog">
@@ -241,13 +269,13 @@ declare module 'astro:content' {
   collection: "blog";
   data: InferEntrySchema<"blog">
 } & { render(): Render[".md"] };
-"using-mdx.mdx": {
-	id: "using-mdx.mdx";
-  slug: "using-mdx";
+"vim.md": {
+	id: "vim.md";
+  slug: "vim";
   body: string;
   collection: "blog";
   data: InferEntrySchema<"blog">
-} & { render(): Render[".mdx"] };
+} & { render(): Render[".md"] };
 };
 
 	};
