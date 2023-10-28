@@ -7,7 +7,7 @@ pubDate: 'Oct 16 2023'
 
 ### Task
 
-Last week I identified an area where we spent way too much time copying info from one place to another - aka data entry. I found that the creation of React Native stylesheets: wastes hours or days of time at the start of a project, is error-prne, and requires no useful thinking. So I am working on iterations of an automation tool for this.
+Last week I identified an area where we spent way too much time copying info from one place to another - aka data entry. I found that the creation of React Native stylesheets: wastes hours or days of time at the start of a project, is error-prone, and requires no useful thinking. So I am working on iterations of an automation tool for this.
 
 ### Achievements
 

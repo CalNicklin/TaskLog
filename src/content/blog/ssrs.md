@@ -42,3 +42,15 @@ The app existed already, but was coming to the end of its life. Being built on X
 `Massive shout out to  Cal who have been doing stellar work for SAS! Also for doing further research into map functionality! This has inadvertently led our team imagining/discussing how we can further enhance SAS' user experience!I cannot say enough how much I truly applaud all our devs and how they think! I believe having that strong footing on what's possible paves the way for great ideas from everyone else! Thou art the rock from which we stand! Huge huge thank you from Design!!`
 
 `To add even more to this, when I tested the app last week it was really impressive to see the lack of bugs or issues, and anything I could find (and I was REALLY looking to find things) was already fixed or known about and being fixed!Really amazing work guys! @Alex Reid @Cal`
+
+`It’s been three months since we launched the new version, and there have been…
+
+🌟 Over 4,000 new 5-star reviews (more than doubling the total from the last 4 years)
+
+🌟 An increase in the average rating to a whopping 4.9/5
+
+🌟 Plus, a 50% increase in monthly active users
+
+To celebrate, we’ve spoken to the people closest to the project in our new behind the scenes blog. Meet the team and find out more about why this project was such a dream, and so effective too ➡
+
+https://lnkd.in/eNVj2m-t`

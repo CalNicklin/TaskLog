@@ -2,18 +2,22 @@
 import BlogPost from "../../layouts/BlogPost.astro";
 import { app } from "../../firebase/server";
 import { getFirestore } from "firebase-admin/firestore";
+import { Markdown } from "@astropub/md";
+import type { CollectionEntry } from "astro:content";
 
-interface Task {
+type Task = CollectionEntry<"blog"> & {
   content: string;
   description: string;
   heroImage: string;
   pubDate: string;
   title: string;
-}
+  achievements: string;
+  recognition: string;
+  subtitle: string;
+  overview: string;
+};
 
 const { id } = Astro.params;
-console.log(Astro.params);
-
 
 if (!id) {
   return Astro.redirect("/404");
@@ -31,6 +35,7 @@ const task = TaskSnapshot.data() as Task;
 ---
 
 <BlogPost {...task}>
-  <h1>{task.content}</h1>
-  <p>description: {task.description}</p>
+  <h1>{task.title}</h1>
+  <p>{task.content}</p>
+  <Markdown of={task.content} />
 </BlogPost>
