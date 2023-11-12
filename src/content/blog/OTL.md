@@ -14,5 +14,6 @@ To design, deliver an AI driven course generator for OTL.
 - Lead AI developer on this project. 
 - Cross-department collaboration with Design.
 - Document and manage developer experience.
+- Workshop with client
 
 ### Recognition
