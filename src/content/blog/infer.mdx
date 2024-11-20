@@ -20,12 +20,33 @@ This project demonstrates building a modern, type-safe SDK for machine learning 
 ## Project Structure
 The project is organized as a monorepo with three main components:
 
+```
 /
 ├── apps/
-│   ├── web/         # Next.js dashboard
-│   └── api/         # Hono API server
+│   ├── api/         # Hono API server
+│   ├── bart-worker/ # GPU-powered ML worker
+│   └── web/         # Admin dashboard
 └── packages/
     └── node-sdk/    # TypeScript SDK package
+```
+
+### BART Worker
+The BART worker is containerized using Docker and runs on GPU infrastructure.
+
+The worker:
+- Uses CUDA-enabled PyTorch for GPU acceleration
+- Implements zero-shot classification using BART-large-MNLI
+- Validates inputs using a schema
+- Handles errors gracefully
+- Docker Configuration
+- The worker runs in a container with CUDA supportÏ
+
+The system is optimized for performance:
+- GPU acceleration using CUDA
+- Model caching during container build
+- High concurrency support (1000 concurrent requests)
+- Efficient input validation
+- Pre-loaded models for faster inference
 
 ### Web Dashboard
 The dashboard provides a clean interface for managing API keys and monitoring usage. The dashboard includes:
