@@ -1,7 +1,7 @@
 ---
 title: 'Building a Type-Safe Public API with Hono, OpenAPI, and Next.js'
 description: 'A deep dive into creating a production-ready public API using Hono, OpenAPI, and Next.js App Router'
-pubDate: 'Mar 20 2024'
+pubDate: 'Nov 19 2024'
 heroImage: '/placeholder-hero.jpg'
 ---
 
