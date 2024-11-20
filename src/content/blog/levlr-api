@@ -1,0 +1,287 @@
+---
+title: 'Building a Type-Safe Public API with Hono, OpenAPI, and Next.js'
+description: 'A deep dive into creating a production-ready public API using Hono, OpenAPI, and Next.js App Router'
+pubDate: 'Mar 20 2024'
+heroImage: '/placeholder-hero.jpg'
+---
+
+# Introduction
+In this post, I'll walk through how to build a type-safe public API using Hono and OpenAPI specifications within a Next.js application. We'll cover everything from initial setup to authentication, testing, and documentation.
+
+## Core Technologies
+The API layer uses several key technologies:
+- Hono: A small, simple, and ultrafast web framework
+- OpenAPI/Swagger: For API documentation and type generation
+- Unkey: For API key management and authentication
+- Trigger.dev: For handling background jobs
+- Pino: For structured logging
+
+## Project Structure
+The API is structured under the Next.js App Router convention at ```app/api/public/[[...route]]```:
+
+```
+api/public/[[...route]]/
+├── lib/
+│   ├── configure-openapi.ts
+│   ├── create-app.ts
+│   └── types.ts
+├── middlewares/
+│   ├── auth.ts
+│   └── pino-logger.ts
+├── routes/
+│   ├── candidate/
+│   ├── job/
+│   └── index.route.ts
+├── app.ts
+└── route.ts
+```
+
+## Setting Up the Base Application
+First, let's look at how we create our base Hono application:
+
+```typescript
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { onError, notFound, serveEmojiFavicon } from 'stoker/middlewares';
+import { defaultHook } from 'stoker/openapi';
+import { pinoLogger } from '~/app/api/public/[[...route]]/middlewares/pino-logger';
+import { type AppBindings } from './types';
+
+export function createRouter(skipBasePath = false) {
+  return new OpenAPIHono<AppBindings>({
+    strict: false,
+    defaultHook,
+  }).basePath(skipBasePath ? '' : '/api/public');
+}
+
+export function createApp() {
+  const app = createRouter();
+
+  // Configure OpenAPI security
+  app.openAPIRegistry.registerComponent('securitySchemes', 'Bearer', {
+    type: 'http',
+    scheme: 'bearer',
+  });
+
+  // Add middleware
+  app.use(serveEmojiFavicon('⤴︎'));
+  app.use(pinoLogger());
+  
+  app.notFound(notFound);
+  app.onError(onError);
+
+  return app;
+}
+```
+
+## API Authentication
+We implement API key authentication using Unkey:
+
+```typescript
+import { Unkey } from '@unkey/api';
+import { type Context } from 'hono';
+import { env } from '~/env';
+
+const unkey = new Unkey({ rootKey: env.UNKEY_TOKEN });
+
+export async function authMiddleware(c: Context, next: () => Promise<void>) {
+  const apiKey = c.req.header('Authorization')?.replace('Bearer ', '');
+
+  if (!apiKey) {
+    return c.json({ error: 'No API key provided' }, 401);
+  }
+
+  const { result, error } = await unkey.keys.verify({ key: apiKey });
+
+  if (error ?? !result.valid) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  // Add key metadata to context
+  c.set('keyId', result.keyId);
+  c.set('ownerId', result.ownerId);
+  c.set('organisationId', result.meta?.organisationId);
+
+  await next();
+}
+```
+
+## Route Definition with OpenAPI
+Here's how we define type-safe routes using Hono's OpenAPI integration:
+
+```typescript
+import { createRoute, z } from '@hono/zod-openapi';
+import { jsonContent } from 'stoker/openapi/helpers';
+import * as HttpStatusCodes from 'stoker/http-status-codes';
+
+export const create = createRoute({
+  tags: ['Job'],
+  method: 'post',
+  path: '/peoplebank/job',
+  security: [{ Bearer: [] }],
+  request: {
+    body: jsonContent(
+      z.object({
+        job: createJobSchema.openapi('job'),
+      }),
+      'Job',
+    ),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      createMessageObjectSchema('OK'), 
+      'OK'
+    ),
+    // ... other response definitions
+  },
+});
+```
+
+## Route Handlers
+The handlers implement the business logic for each route:
+
+```typescript
+import { tasks } from '@trigger.dev/sdk/v3';
+import { type AppRouteHandler } from '../../lib/types';
+import { type CreateRoute } from './job.routes';
+
+export const create: AppRouteHandler<CreateRoute> = async (c) => {
+  const { job } = c.req.valid('json');
+
+  const _job = await tasks.trigger<typeof createJobTask>('create-job-task', {
+    atsId: job.atsId,
+    organisationId: c.get('organisationId'),
+    // ... other job properties
+  });
+
+  if (!_job.id) {
+    return c.json({ message: 'Internal Server Error' }, 500);
+  }
+
+  return c.json({ message: 'OK' }, 200);
+};
+```
+
+## Testing
+We use Vitest for testing our API endpoints:
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { testClient } from 'hono/testing';
+import { tasks } from '@trigger.dev/sdk/v3';
+import { createApp } from '../../lib/create-app';
+import router from './job.index';
+
+const client = testClient(createApp().route('/', router));
+
+describe('Create job', () => {
+  it('should return a 200 when the request is valid', async () => {
+    const res = await client.api.public.peoplebank.job.$post({
+      json: {
+        job: {
+          atsId: '123',
+          companyId: '456',
+          description: 'test',
+          // ... other required fields
+        },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(tasks.trigger).toHaveBeenCalledWith(
+      'create-job-task',
+      expect.any(Object),
+    );
+  });
+
+  // ... other test cases
+});
+```
+
+## API Documentation
+We automatically generate API documentation using OpenAPI:
+```typescript
+import { apiReference } from '@scalar/hono-api-reference';
+import { getBaseUrl } from '~/lib/utils';
+import { type AppOpenAPI } from './types';
+
+export function configureOpenAPI(app: AppOpenAPI) {
+  // Generate OpenAPI spec
+  app.doc('/docs', {
+    openapi: '3.0.0',
+    info: {
+      title: 'Levlr Public API',
+      version: '1.0.0',
+    },
+  });
+
+  // Add interactive API reference
+  app.get(
+    '/reference',
+    apiReference({
+      theme: 'kepler',
+      spec: {
+        url: new URL('/api/public/docs', getBaseUrl()).toString(),
+      },
+    }),
+  );
+}
+```
+
+## Structured Logging
+We implement structured logging using Pino:
+
+```typescript
+import { randomUUID } from 'node:crypto';
+import { pinoLogger as logger } from 'hono-pino';
+import pino from 'pino';
+import pretty from 'pino-pretty';
+import { env } from '~/env';
+
+export function pinoLogger() {
+  return logger({
+    pino: pino(
+      {
+        level: env.LOG_LEVEL,
+      },
+      env.NODE_ENV === 'development' ? pretty() : undefined,
+    ),
+    http: {
+      reqId: () => randomUUID(),
+    },
+  });
+}
+```
+
+## Integration with Next.js
+Finally, we integrate with Next.js using the App Router:
+
+```typescript
+import { handle } from 'hono/vercel';
+import { app } from './app';
+
+export const runtime = 'nodejs';
+
+export const GET = handle(app);
+export const POST = handle(app);
+```
+
+## Key Benefits
+This architecture provides several advantages:
+- Type Safety: End-to-end type safety from API definition to implementation
+- Documentation: Automatically generated, always up-to-date API documentation
+- Testing: Easy-to-test endpoints with built-in test utilities
+- Performance: Lightweight and fast request handling
+- Security: Built-in authentication and API key management
+- Monitoring: Structured logging for better observability
+
+## Conclusion
+Building a public API with Hono and OpenAPI in Next.js provides a robust foundation for creating type-safe, well-documented, and maintainable APIs. The combination of these tools allows us to focus on business logic while maintaining high standards for API design and implementation.
+The complete implementation shows how to:
+- Define type-safe routes with OpenAPI specifications
+- Implement authentication and authorization
+- Handle background jobs with Trigger.dev
+- Test API endpoints effectively
+- Generate interactive API documentation
+- Implement structured logging
+- This approach scales well as your API grows and provides a great developer experience for both API consumers and maintainers.
+
+
