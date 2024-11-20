@@ -1,0 +1,201 @@
+---
+title: 'Building a Type-Safe ML Inference SDK with Next.js Dashboard'
+description: 'A full-stack TypeScript project for machine learning inference operations'
+pubDate: 'Nov 20 2024'
+heroImage: '/placeholder-hero.jpg'
+---
+
+# Overview
+This project demonstrates building a modern, type-safe SDK for machine learning inference operations, complete with a Next.js dashboard for API key management and usage monitoring. The project uses a monorepo structure with Turborepo, combining a Next.js frontend, Hono-based API, and a Node.js SDK package.
+
+## Key Features
+🧸 Automatic model caching and quantization
+📈 Cost-effective inference
+🚀 Zero-shot classification
+🔒 Built-in error handling
+⚡️ Modern ESM and CommonJS support
+⚡️ RunPod GPU-accelerated inference
+🔒 Clerk auth / Unkey API management
+
+## Project Structure
+The project is organized as a monorepo with three main components:
+
+/
+├── apps/
+│   ├── web/         # Next.js dashboard
+│   └── api/         # Hono API server
+└── packages/
+    └── node-sdk/    # TypeScript SDK package
+
+### Web Dashboard
+The dashboard provides a clean interface for managing API keys and monitoring usage. The dashboard includes:
+- API key management
+- Usage statistics with charts
+- Billing information
+- Account settings
+
+### Web API Key Generation
+The dashboard integrates with Stripe for billing and Unkey for API key management:
+```typescript
+export async function POST() {
+  
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+  const unkey = new Unkey({ token: process.env.UNKEY_TOKEN! })
+
+  try {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const user = await currentUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Create Stripe customer
+    const customer = await stripe.customers.create({
+      metadata: {
+        userId
+      },
+      email: user.primaryEmailAddress?.emailAddress,
+      name: user.firstName + ' ' + user.lastName
+    })
+
+    // Create subscription
+    const subscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{
+        price: process.env.STRIPE_PRICE_ID!,
+      }],
+      payment_behavior: 'default_incomplete',
+      expand: ['pending_setup_intent'],
+    })
+
+    // Generate API key with Unkey
+    const { result: key } = await unkey.keys.create({
+      apiId: process.env.UNKEY_API_ID!,
+      prefix: 'infer',
+      ownerId: userId,
+      meta: {
+        stripeCustomerId: customer.id
+      }
+    })
+
+    return NextResponse.json({
+      key: key?.key,
+      subscriptionId: subscription.id
+    })
+
+  } catch (error) {
+    console.error('Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to generate key' },
+      { status: 500 }
+    )
+  }
+}
+```
+
+### API Implementation
+The API is built using Hono, a lightweight and fast web framework. Here's the main API setup:
+```typescript
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { zeroShotHandler } from './handlers/index'
+import { authMiddleware } from './middleware/auth'
+import { usageMiddleware } from './middleware/usage'
+import { pinoLogger } from './middleware/pino-logger'
+
+const app = new Hono()
+
+app.use('*', cors({
+  origin: '*', // Allow all origins
+  allowMethods: ['GET', 'POST', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  exposeHeaders: ['Content-Length', 'X-Request-Id'],
+  credentials: true,
+  maxAge: 86400,
+}))
+
+app.onError((err, c) => {
+  console.error(`${err}`);
+
+  return c.json({
+    success: false,
+    error: {
+      type: err.name || 'InternalError',
+      message: err.message || 'An unexpected error occurred',
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    }
+  }, err instanceof Error ? (err as any).status || 500 : 500);
+})
+
+app.get('/', (c) => {
+  return c.json({ message: 'Hello, world!' })
+})
+app.get('/health', (c) => {
+  return c.json({ status: 'ok' })
+})
+app.use('/api/*', authMiddleware)
+app.use('/api/*', usageMiddleware)
+app.use(pinoLogger());
+
+// Main inference endpoint
+app.post('/api/zero-shot', zeroShotHandler)
+```
+
+### SDK
+The SDK provides a simple interface for ML inference operations. Here's a basic example:
+
+```typescript
+import Infer from 'infer';
+
+const infer = new Infer({ apiKey: 'your-api-key' });
+
+const result = await infer.zeroShot.classify(
+  "I love this product!",
+  ['positive', 'negative']
+);
+```
+
+#### Error Handling
+The SDK includes comprehensive error handling:
+
+```typescript
+import Infer, { UnauthorizedError, RateLimitError } from 'infer';
+
+async function classifyWithRetry(text: string, labels: string[]) {
+  const maxRetries = 3;
+  let attempts = 0;
+
+  while (attempts < maxRetries) {
+    try {
+      return await infer.zeroShot.classify(text, labels);
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        throw error; // Don't retry auth errors
+      }
+      if (error instanceof RateLimitError) {
+        attempts++;
+        if (attempts === maxRetries) throw error;
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+```
+
+
+This project demonstrates how to build a modern, type-safe SDK with a professional dashboard interface. The combination of Next.js, Hono, and TypeScript provides a robust foundation for building ML inference services.
+The complete source code shows how to:
+- Implement type-safe API endpoints
+- Build a responsive dashboard UI
+- Handle authentication and billing
+- Manage API keys securely
+- Monitor usage and provide analytics
+- This architecture can serve as a template for building similar developer tools and services.Ï
+
+
