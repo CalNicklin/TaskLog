@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import vercel from '@astrojs/vercel/serverless';
 import mdx from '@astrojs/mdx';
+import remarkMermaidjs from 'remark-mermaidjs';
 
 import sitemap from '@astrojs/sitemap';
 
